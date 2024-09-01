@@ -6,12 +6,11 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 import re
 import logging
-from django.utils.decorators import method_decorator
+import json
 from django.http import HttpResponse
-from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import csrf_exempt
-import json
+from django.utils.decorators import method_decorator
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ class FileUploadView(APIView):
         logger.debug('POST request received.')
 
         file_obj = request.FILES.get('file')
-        job_id_pattern = request.POST.get('jobIdPattern', '').encode()
+        job_id_pattern = request.POST.get('jobIdPattern', '')
         additional_patterns_input = request.POST.get('additionalPatterns', '')
 
         logger.debug(f'File: {file_obj}')
@@ -54,12 +53,13 @@ class FileUploadView(APIView):
             # Join patterns with '|' and escape special characters
             compiled_patterns = '|'.join([re.escape(pattern.strip()) for pattern in patterns])
             logger.debug(f'Compiled Patterns: {compiled_patterns}')
-            return re.compile(compiled_patterns.encode(), re.IGNORECASE)
+            return re.compile(compiled_patterns, re.IGNORECASE)
         except re.error as e:
             logger.error(f'Error compiling patterns: {e}')
             raise ValueError(f"Invalid regular expression: {e}")
 
     def parse_file(self, file, job_id_pattern, additional_patterns):
+        jobid_pattern = re.compile(job_id_pattern, re.IGNORECASE)
         final_text = ""
 
         try:
@@ -67,8 +67,10 @@ class FileUploadView(APIView):
             lines = file_content.splitlines()
 
             for line in lines:
-                if job_id_pattern.search(line) and additional_patterns.search(line):
-                    final_text += line.decode(errors='ignore').strip() + "\n"
+                # Decode each line to string before searching
+                line = line.decode(errors='ignore')
+                if jobid_pattern.search(line) and additional_patterns.search(line):
+                    final_text += line.strip() + "\n"
 
         except Exception as e:
             logger.error(f'Error reading file: {e}')
