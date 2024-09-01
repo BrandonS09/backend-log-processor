@@ -62,23 +62,23 @@ class FileUploadView(APIView):
             logger.error(f'Error compiling patterns: {e}')
             raise ValueError(f"Invalid regular expression: {e}")
 
-    def parse_file(self, file, job_id_pattern, additional_patterns):
-        jobid_pattern = re.compile(job_id_pattern, re.IGNORECASE)
+    def parse_file(file, job_id_pattern, additional_patterns):
+        jobid_pattern = re.compile(job_id_pattern.encode(), re.IGNORECASE)
+        additional_patterns_compiled = re.compile(b"|".join([pat.encode() for pat in additional_patterns]), re.IGNORECASE)
         final_text = ""
-
+    
         try:
-            mmapped_file = mmap.mmap(file.file.fileno(), 0, access=mmap.ACCESS_READ)
-            while True:
-                line = mmapped_file.readline()
-                if not line:
-                    break
-                if jobid_pattern.search(line) and additional_patterns.search(line):
+            file_content = file.read()
+            lines = file_content.splitlines()
+    
+            for line in lines:
+                if jobid_pattern.search(line) and additional_patterns_compiled.search(line):
                     final_text += line.decode(errors='ignore').strip() + "\n"
-            mmapped_file.close()
+    
         except Exception as e:
             logger.error(f'Error reading file: {e}')
             raise Exception(f"An error occurred: {e}")
-
+    
         return final_text
 # @method_decorator(csrf_exempt, name='dispatch')
 # class FileUploadView(APIView):
