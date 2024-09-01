@@ -7,7 +7,7 @@ from rest_framework import status
 import re
 import logging
 import json
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
