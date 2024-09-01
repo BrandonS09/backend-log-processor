@@ -1,20 +1,17 @@
 from django.shortcuts import render
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework import status
 import re
 import logging
-import mmap
 from django.utils.decorators import method_decorator
-from django.core.files.uploadedfile import UploadedFile
-from django.core.files.base import ContentFile
-import json
 from django.http import HttpResponse
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import csrf_exempt
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -62,62 +59,19 @@ class FileUploadView(APIView):
             logger.error(f'Error compiling patterns: {e}')
             raise ValueError(f"Invalid regular expression: {e}")
 
-    def parse_file(file, job_id_pattern, additional_patterns):
-        jobid_pattern = re.compile(job_id_pattern.encode(), re.IGNORECASE)
-        additional_patterns_compiled = re.compile(b"|".join([pat.encode() for pat in additional_patterns]), re.IGNORECASE)
+    def parse_file(self, file, job_id_pattern, additional_patterns):
         final_text = ""
-    
+
         try:
             file_content = file.read()
             lines = file_content.splitlines()
-    
+
             for line in lines:
-                if jobid_pattern.search(line) and additional_patterns_compiled.search(line):
+                if job_id_pattern.search(line) and additional_patterns.search(line):
                     final_text += line.decode(errors='ignore').strip() + "\n"
-    
+
         except Exception as e:
             logger.error(f'Error reading file: {e}')
             raise Exception(f"An error occurred: {e}")
-    
+
         return final_text
-# @method_decorator(csrf_exempt, name='dispatch')
-# class FileUploadView(APIView):
-#     parser_classes = (MultiPartParser, FormParser)
-#     permission_classes = [AllowAny]
-
-#     def post(self, request, *args, **kwargs):
-#         file_obj = request.FILES.get('file')
-
-#         if file_obj and file_obj.name.endswith('.txt'):
-#             try:
-#                 filtered_text = self.parse_file(file_obj)
-#                 response = HttpResponse(filtered_text, content_type='text/plain')
-#                 response['Content-Disposition'] = f'attachment; filename="processed_file.txt"'
-#                 return response
-#             except Exception as e:
-#                 return Response({'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#         else:
-#             return Response({'message': 'Invalid file type. Please upload a .txt file.'}, status=status.HTTP_400_BAD_REQUEST)
-
-#     def parse_file(self, file: UploadedFile) -> str:
-#         jobid_pattern = re.compile(rb'\s*P00014194\.669E28F7\.636: \[', re.IGNORECASE)
-#         additional_patterns = re.compile(
-#             rb': \[recent action|: \[status|: \[print status|FEI - \*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\* New Job received |FEI - JOB_START |FEI - JOB_STARTED|FEI - JOB_END |FEI - JOB_CANCEL|: \[last joblog event|jmi_print_job_ex6: \[|: \[job release state|: \[queued for printing|: \[PQM',
-#           re.IGNORECASE)
-#         final_text = ""
-
-#         try:
-#             mmapped_file = mmap.mmap(file.file.fileno(), 0, access=mmap.ACCESS_READ)
-#             while True:
-#                 line = mmapped_file.readline()
-#                 if not line:
-#                     break
-#                 if jobid_pattern.search(line) and additional_patterns.search(line):
-#                     final_text += line.decode(errors='ignore').strip() + "\n"
-#             mmapped_file.close()
-#         except FileNotFoundError:
-#             raise FileNotFoundError("Error: The file could not be found.")
-#         except Exception as e:
-#             raise Exception(f"An error occurred: {e}")
-
-#         return final_text
